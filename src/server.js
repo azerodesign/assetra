@@ -1,6 +1,5 @@
 const express = require("express");
 const { exchangeCodeAndSaveToken } = require("./services/oauth");
-const { logger } = require("./services/logger");
 
 function escapeHtml(str = "") {
   return String(str)
@@ -15,6 +14,26 @@ function startServer() {
   // ===== HEALTH CHECK =====
   app.get("/", (req, res) => {
     res.send("Assetra OK 🚀");
+  });
+
+  // ===== START OAUTH (buat test manual) =====
+  app.get("/auth/google", (req, res) => {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_REDIRECT_URI) {
+      return res.status(500).send("❌ Google OAuth env belum lengkap.");
+    }
+
+    const base = "https://accounts.google.com/o/oauth2/v2/auth";
+    const params = new URLSearchParams({
+      client_id: process.env.GOOGLE_CLIENT_ID,
+      redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+      response_type: "code",
+      scope: "https://www.googleapis.com/auth/drive",
+      access_type: "offline",
+      prompt: "consent",
+      state: "test-user" // nanti ganti userId dari bot
+    });
+
+    res.redirect(`${base}?${params.toString()}`);
   });
 
   // ===== OAUTH CALLBACK =====
@@ -33,24 +52,23 @@ function startServer() {
           <body style="font-family:system-ui;background:#0f172a;color:#e5e7eb;display:grid;place-items:center;min-height:100vh;">
             <main style="max-width:520px;padding:32px;border-radius:24px;background:#111827;text-align:center;">
               <h1>✅ Google Drive Terhubung</h1>
-              <p>Kembali ke Telegram → cek <b>Auth Status</b>.</p>
+              <p>Token tersimpan. Balik ke Telegram.</p>
             </main>
           </body>
         </html>
       `);
     } catch (err) {
-      logger.error("OAuth callback failed:", err?.message || err);
+      console.error("OAuth Error:", err);
       return res
         .status(500)
-        .send("❌ OAuth error: " + escapeHtml(err?.message || "unknown"));
+        .send("❌ OAuth error: " + escapeHtml(err.message));
     }
   });
 
   const PORT = process.env.PORT || 3000;
 
-  // IMPORTANT: bind 0.0.0.0
   app.listen(PORT, "0.0.0.0", () => {
-    console.log("🚀 Assetra server running on port", PORT);
+    console.log("🚀 Server running on port", PORT);
   });
 }
 
