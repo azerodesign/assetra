@@ -6,28 +6,27 @@ const { logger } = require("./src/services/logger");
 const { config } = require("./src/config");
 
 async function main() {
-  const bot = createBot();
+  try {
+    // 1) BUKA PORT DULU (penting buat Railway)
+    startServer();
 
-  await bot.launch();
-  startServer();
+    // 2) Start bot
+    const bot = createBot();
 
-  logger.info(`🤖 Assetra v${config.version} berjalan.`);
+    // opsional: webhook kalau lu pakai webhook (kalau gak, long polling default)
+    // await bot.telegram.setWebhook(process.env.WEBHOOK_URL);
 
-  process.once("SIGINT", () => {
-    logger.info("SIGINT received. Stopping bot...");
-    bot.stop("SIGINT");
-    process.exit(0);
-  });
+    await bot.launch();
 
-  process.once("SIGTERM", () => {
-    logger.info("SIGTERM received. Stopping bot...");
-    bot.stop("SIGTERM");
-    process.exit(0);
-  });
+    logger.info(`🤖 Assetra v${config?.version || "0.1.0"} berjalan.`);
+  } catch (err) {
+    logger.error("Startup failed:", err);
+    process.exit(1);
+  }
+
+  // graceful shutdown
+  process.once("SIGINT", () => process.exit(0));
+  process.once("SIGTERM", () => process.exit(0));
 }
 
-main().catch((err) => {
-  logger.error("Startup failed:", err);
-  process.exit(1);
-});
-
+main();
